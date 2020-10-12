@@ -19,6 +19,7 @@ library project C_Libfswatch is
 
          when "unix" =>
             for Linker_Options use ("-pthread");
+      end case;
    end Linker;
 
 end C_Libfswatch;

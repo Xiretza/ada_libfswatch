@@ -29,7 +29,7 @@ procedure basic is
    end Callback;
 begin
    --  ??? linux-specific
-   Session := fsw_init_session (cmonitor_h.windows_monitor_type);
+   Session := fsw_init_session (cmonitor_h.system_default_monitor_type);
    Status := fsw_add_path (Session, Interfaces.C.Strings.New_String ("."));
    Status := fsw_set_callback (Session, Callback'Unrestricted_Access,
                                System.Null_Address);
