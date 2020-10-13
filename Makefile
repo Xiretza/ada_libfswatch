@@ -9,7 +9,7 @@ libfswatch:
 # generate the Ada binding
 generated: libfswatch
 	(mkdir -p generated; cd libfswatch/include/libfswatch/c/ ; \
-		gcc -fdump-ada-spec libfswatch.h ; \
+		gcc -C -fdump-ada-spec libfswatch.h ; \
 	       	mv *.ads ../../../../generated/)
 
 clean:

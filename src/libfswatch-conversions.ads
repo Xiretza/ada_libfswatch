@@ -21,22 +21,20 @@
 -- <http://www.gnu.org/licenses/>.                                          --
 ------------------------------------------------------------------------------
 
-package body Libfswatch is
+--  This package contains utilities to convert from low-level C representations
+--  to high-level Ada representations
 
-   -----------------
-   -- Event_Image --
-   -----------------
+with cevent_h;     use cevent_h;
+with Interfaces.C; use Interfaces.C;
 
-   function Event_Image (E : Event) return String is
-      Result : Unbounded_String;
-   begin
-      Result := "Path: " & E.Path & ASCII.LF & "Flags:";
-      for Flag of E.Flags loop
-         Result := Result & " " & Event_Flags'Image (Flag);
-      end loop;
-      Result := Result & ASCII.LF;
+package Libfswatch.Conversions is
 
-      return To_String (Result);
-   end Event_Image;
+   function To_Ada (C : fsw_cevent) return Event;
+   --  Convert a single event
 
-end Libfswatch;
+   function To_Ada
+     (c_event_array_start : access constant fsw_cevent;
+      c_event_array_size  : unsigned) return Event_Vectors.Vector;
+   --  Convert an array of events
+
+end Libfswatch.Conversions;

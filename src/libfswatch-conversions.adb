@@ -21,22 +21,61 @@
 -- <http://www.gnu.org/licenses/>.                                          --
 ------------------------------------------------------------------------------
 
-package body Libfswatch is
+with Ada.Unchecked_Conversion;
+with Interfaces.C.Strings; use Interfaces.C.Strings;
 
-   -----------------
-   -- Event_Image --
-   -----------------
+package body Libfswatch.Conversions is
 
-   function Event_Image (E : Event) return String is
-      Result : Unbounded_String;
+   ------------
+   -- To_Ada --
+   ------------
+
+   function To_Ada (C : fsw_cevent) return Event is
+      Result : Event;
+
+      type Flags_Array is array (1 .. C.flags_num) of fsw_event_flag;
+      type Flags_Array_Access is access Flags_Array;
+      type event_flag_access is access all fsw_event_flag;
+      function Convert is new Ada.Unchecked_Conversion
+        (event_flag_access, Flags_Array_Access);
+      Flags  : Flags_Array_Access;
+
+
    begin
-      Result := "Path: " & E.Path & ASCII.LF & "Flags:";
-      for Flag of E.Flags loop
-         Result := Result & " " & Event_Flags'Image (Flag);
+      Result.Path := To_Unbounded_String (Value (C.path));
+
+      Flags := Convert (event_flag_access (C.flags));
+      for Flag of Flags.all loop
+         Result.Flags.Append (Event_Flags'Enum_Val (Flag));
       end loop;
-      Result := Result & ASCII.LF;
 
-      return To_String (Result);
-   end Event_Image;
+      return Result;
+   end To_Ada;
 
-end Libfswatch;
+   ------------
+   -- To_Ada --
+   ------------
+
+   function To_Ada
+     (c_event_array_start : access constant fsw_cevent;
+      c_event_array_size  : unsigned) return Event_Vectors.Vector
+   is
+      Result : Event_Vectors.Vector;
+
+      type Events_Array is array (1 .. c_event_array_size) of fsw_cevent;
+      type Events_Array_Access is access Events_Array;
+      type fsw_cevent_access is access constant fsw_cevent;
+      function Convert is new Ada.Unchecked_Conversion
+        (fsw_cevent_access, Events_Array_Access);
+
+      X      : constant Events_Array_Access :=
+                 Convert (fsw_cevent_access (c_event_array_start));
+   begin
+      for C_Event of X.all loop
+         Result.Append (To_Ada (C_Event));
+      end loop;
+
+      return Result;
+   end To_Ada;
+
+end Libfswatch.Conversions;

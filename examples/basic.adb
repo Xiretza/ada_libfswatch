@@ -21,22 +21,67 @@
 -- <http://www.gnu.org/licenses/>.                                          --
 ------------------------------------------------------------------------------
 
-package body Libfswatch is
+pragma Ada_2020;
 
-   -----------------
-   -- Event_Image --
-   -----------------
+with Ada.Text_IO; use Ada.Text_IO;
+with Ada.Unchecked_Conversion;
 
-   function Event_Image (E : Event) return String is
-      Result : Unbounded_String;
+with Interfaces.C; use Interfaces.C;
+with Interfaces.C.Strings;
+with libfswatch_h; use libfswatch_h;
+with libfswatch_types_h; use libfswatch_types_h;
+with cmonitor_h;
+with cevent_h; use cevent_h;
+with System; use System;
+
+with Libfswatch;             use Libfswatch;
+with Libfswatch.Conversions; use Libfswatch.Conversions;
+
+procedure basic is
+   res : constant int := libfswatch_h.fsw_init_library;
+   Status : FSW_STATUS;
+   Session : FSW_HANDLE;
+
+   procedure Callback
+     (arg1 : access constant fsw_cevent;
+      arg2 : unsigned;
+      arg3 : System.Address) with Convention => C;
+
+   --------------
+   -- Callback --
+   --------------
+
+   procedure Callback
+     (arg1 : access constant fsw_cevent;
+      arg2 : unsigned;
+      arg3 : System.Address)
+   is
+      Events : Event_Vectors.Vector;
    begin
-      Result := "Path: " & E.Path & ASCII.LF & "Flags:";
-      for Flag of E.Flags loop
-         Result := Result & " " & Event_Flags'Image (Flag);
+      Events := To_Ada (arg1, arg2);
+      for E of Events loop
+         Put_Line (Event_Image (E));
       end loop;
-      Result := Result & ASCII.LF;
+   end Callback;
+begin
+   Session := fsw_init_session (cmonitor_h.system_default_monitor_type);
 
-      return To_String (Result);
-   end Event_Image;
+   Status := fsw_add_path (Session, Interfaces.C.Strings.New_String ("."));
+   if Status /= 0 then
+      Put_Line ("Error when adding path");
+      return;
+   end if;
 
-end Libfswatch;
+   Status := fsw_set_callback
+     (Session, Callback'Unrestricted_Access, System.Null_Address);
+   if Status /= 0 then
+      Put_Line ("Error when setting callback");
+      return;
+   end if;
+
+   Status := fsw_start_monitor (Session);
+   if Status /= 0 then
+      Put_Line ("Error when starting monitor");
+      return;
+   end if;
+end basic;
