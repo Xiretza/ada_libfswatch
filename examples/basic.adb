@@ -63,6 +63,19 @@ procedure basic is
          Put_Line (Event_Image (E));
       end loop;
    end Callback;
+
+   task Stop_After_10_Seconds;
+   --  Stop the session after 10 seconds
+
+   task body Stop_After_10_Seconds is
+   begin
+      delay 10.0;
+      Status := fsw_stop_monitor (Session);
+      if Status /= 0 then
+         Put_Line ("Error when stopping the session");
+      end if;
+   end Stop_After_10_Seconds;
+
 begin
    Session := fsw_init_session (cmonitor_h.system_default_monitor_type);
 
