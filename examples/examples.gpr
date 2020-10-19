@@ -1,0 +1,13 @@
+with "../ada_libfswatch";
+
+project Examples is
+
+   for Source_Dirs use (".");
+   for Object_Dir use "obj";
+   for Main use ("basic.adb");
+
+   package Compiler is
+      for Default_Switches ("Ada") use ("-g", "-O0", "-gnatwae", "-gnaty");
+   end Compiler;
+
+end Examples;
