@@ -27,7 +27,14 @@
 with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 with Ada.Containers.Vectors;
 
+with GNATCOLL.VFS; use GNATCOLL.VFS;
+
+with libfswatch_types_h; use libfswatch_types_h;
+
 package Libfswatch is
+
+   Libfswatch_Error : exception;
+   --  Used to report any library exception
 
    --------------------
    -- Event handling --
@@ -78,5 +85,33 @@ package Libfswatch is
 
    function Event_Image (E : Event) return String;
    --  Return a representation of an event as a string, useful for debugging
+
+   ----------------
+   -- Monitoring --
+   ----------------
+
+   type Root_Event_Monitor is tagged private;
+   --  A callback type. Inherit from this and override Callback to define
+   --  your own callback.
+
+   procedure Callback (Self   : Root_Event_Monitor;
+                       Events : Event_Vectors.Vector) is null;
+   --  Called when events are received on the paths being monitored
+
+   procedure Blocking_Monitor
+     (Monitor : in out Root_Event_Monitor'Class;
+      Paths   : File_Array);
+   --  Monitor paths, calling Callback when events are received. This does
+   --  not return until interrupted via Stop_Monitor below.
+   --  TODO: add a timeout parameter?
+
+   procedure Stop_Monitor (Monitor : in out Root_Event_Monitor'Class);
+   --  Interrupt the monitoring. This is thread-safe.
+
+private
+
+   type Root_Event_Monitor is tagged record
+      Session : FSW_HANDLE;
+   end record;
 
 end Libfswatch;

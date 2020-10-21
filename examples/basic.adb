@@ -123,7 +123,7 @@ begin
    --  Set a callback to be called whenever an event arrives on any
    --  of the paths being monitored.
    Status := fsw_set_callback
-     (Session, Callback'Unrestricted_Access, System.Null_Address);
+     (Session, Basic.Callback'Unrestricted_Access, System.Null_Address);
    if Status /= 0 then
       Put_Line ("Error when setting callback");
       return;
@@ -137,6 +137,12 @@ begin
    Status := fsw_start_monitor (Session);
    if Status /= 0 then
       Put_Line ("Error when starting monitor");
+      return;
+   end if;
+
+   Status := fsw_destroy_session (Session);
+   if Status /= 0 then
+      Put_Line ("Error when destroying the session");
       return;
    end if;
 

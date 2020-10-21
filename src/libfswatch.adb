@@ -22,7 +22,84 @@
 --                                                                          --
 ------------------------------------------------------------------------------
 
+with Ada.Unchecked_Conversion;
+with Ada.Unchecked_Deallocation;
+with System;
+with Interfaces.C;           use Interfaces.C;
+with Interfaces.C.Strings;
+
+with cmonitor_h;
+with libfswatch_h;           use libfswatch_h;
+with cevent_h;               use cevent_h;
+
+with Libfswatch.Conversions; use Libfswatch.Conversions;
+
 package body Libfswatch is
+
+   type Root_Event_Monitor_Access is access all Root_Event_Monitor'Class;
+
+   procedure Unchecked_Free is new Ada.Unchecked_Deallocation
+     (Root_Event_Monitor'Class, Root_Event_Monitor_Access);
+   function Convert is new Ada.Unchecked_Conversion
+     (System.Address, Root_Event_Monitor_Access);
+   function Convert is new Ada.Unchecked_Conversion
+     (Root_Event_Monitor_Access, System.Address);
+
+   ----------------------------
+   -- Library initialization --
+   ----------------------------
+
+   --  The C library requires a global initialization: handle this here
+
+   C_Lib_Initialized : Boolean := False;
+
+   procedure Initialize_C_Lib;
+   --  Call this for any call that requires the library to be initialized.
+   --  You may call this any number of times, it won't do anything if the
+   --  library has already been initialized.
+
+   function Init_Session return FSW_HANDLE;
+   --  Initialize a session with the default monitor, checking for errors
+
+   procedure Low_Level_Callback
+     (arg1 : access constant fsw_cevent;
+      arg2 : unsigned;
+      arg3 : System.Address) with Convention => C;
+
+   procedure Add_Path (Session : FSW_HANDLE; Path : Virtual_File);
+   --  Add a path to be monitored to Session
+
+   ----------------------
+   -- Initialize_C_Lib --
+   ----------------------
+
+   procedure Initialize_C_Lib is
+      Init : int;
+   begin
+      if C_Lib_Initialized then
+         return;
+      end if;
+
+      C_Lib_Initialized := True;
+      Init := libfswatch_h.fsw_init_library;
+      if Init /= 0 then
+         raise Libfswatch_Error with ("fsw_init_library returned" & Init'Img);
+      end if;
+   end Initialize_C_Lib;
+
+   ------------------
+   -- Init_Session --
+   ------------------
+
+   function Init_Session return FSW_HANDLE is
+      Session : FSW_HANDLE;
+   begin
+      Session := fsw_init_session (cmonitor_h.system_default_monitor_type);
+      if Session = null then
+         raise Libfswatch_Error with "fsw_init_session failed";
+      end if;
+      return Session;
+   end Init_Session;
 
    -----------------
    -- Event_Image --
@@ -39,5 +116,101 @@ package body Libfswatch is
 
       return To_String (Result);
    end Event_Image;
+
+   ------------------------
+   -- Low_Level_Callback --
+   ------------------------
+
+   procedure Low_Level_Callback
+     (arg1 : access constant fsw_cevent;
+      arg2 : unsigned;
+      arg3 : System.Address)
+   is
+      use System;
+      Events  : Event_Vectors.Vector;
+      Monitor : Root_Event_Monitor_Access;
+   begin
+      --  Convert the C array of events to Ada structures
+      Events := To_Ada (arg1, arg2);
+
+      if arg3 /= Null_Address then
+         Monitor := Convert (arg3);
+         Monitor.Callback (Events);
+      end if;
+   end Low_Level_Callback;
+
+   --------------
+   -- Add_Path --
+   --------------
+
+   procedure Add_Path (Session : FSW_HANDLE; Path : Virtual_File) is
+      Status : FSW_STATUS;
+   begin
+      Status := fsw_add_path
+        (Session,
+         Interfaces.C.Strings.New_String (+Path.Full_Name.all));
+      if Status /= 0 then
+         raise Libfswatch_Error with "fsw_add_path returned" & Status'Img;
+      end if;
+   end Add_Path;
+
+   ----------------------
+   -- Blocking_Monitor --
+   ----------------------
+
+   procedure Blocking_Monitor
+     (Monitor : in out Root_Event_Monitor'Class;
+      Paths   : File_Array)
+   is
+      Monitor_Access : Root_Event_Monitor_Access;
+      Status         : FSW_STATUS;
+   begin
+      --  Initialize the C library
+      Initialize_C_Lib;
+
+      --  Initialize a session
+      Monitor.Session := Init_Session;
+
+      for Path of Paths loop
+         Add_Path (Monitor.Session, Path);
+      end loop;
+
+      Monitor_Access := new Root_Event_Monitor'Class'(Monitor);
+      Status := fsw_set_callback
+        (Monitor.Session, Low_Level_Callback'Access, Convert (Monitor_Access));
+      if Status /= 0 then
+         Unchecked_Free (Monitor_Access);
+         raise Libfswatch_Error with "fsw_set_callback returned" & Status'Img;
+      end if;
+
+      Status := fsw_start_monitor (Monitor.Session);
+      if Status /= 0 then
+         Unchecked_Free (Monitor_Access);
+         raise Libfswatch_Error with "fsw_start_monitor returned" & Status'Img;
+      end if;
+
+      --  The call to fsw_start_monitor above is blocking. If we reach this,
+      --  this means that we've received fsw_stop_monitor and can cleanup.
+
+      Unchecked_Free (Monitor_Access);
+      Status := fsw_destroy_session (Monitor.Session);
+      if Status /= 0 then
+         raise Libfswatch_Error with
+           "fsw_destroy_session returned" & Status'Img;
+      end if;
+   end Blocking_Monitor;
+
+   ------------------
+   -- Stop_Monitor --
+   ------------------
+
+   procedure Stop_Monitor (Monitor : in out Root_Event_Monitor'Class) is
+      Status : FSW_STATUS;
+   begin
+      Status := fsw_stop_monitor (Monitor.Session);
+      if Status /= 0 then
+         raise Libfswatch_Error with "fsw_stop_monitor returned" & Status'Img;
+      end if;
+   end Stop_Monitor;
 
 end Libfswatch;
