@@ -29,9 +29,9 @@ with Libfswatch; use Libfswatch;
 package Simple_Print_Monitor is
 
    type Print_Monitor is new Root_Event_Monitor with null record;
-   --  Inherit from Root_Event_Monitor and override Callback below
+   --  A monitor which prints events that it receives
 
-   overriding procedure Callback (Self   : Print_Monitor;
+   overriding procedure Callback (Self   : in out Print_Monitor;
                                   Events : Event_Vectors.Vector);
 
 end Simple_Print_Monitor;

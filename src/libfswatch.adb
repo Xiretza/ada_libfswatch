@@ -42,8 +42,6 @@ package body Libfswatch is
      (Root_Event_Monitor'Class, Root_Event_Monitor_Access);
    function Convert is new Ada.Unchecked_Conversion
      (System.Address, Root_Event_Monitor_Access);
-   function Convert is new Ada.Unchecked_Conversion
-     (Root_Event_Monitor_Access, System.Address);
 
    ----------------------------
    -- Library initialization --
@@ -162,8 +160,7 @@ package body Libfswatch is
      (Monitor : in out Root_Event_Monitor'Class;
       Paths   : File_Array)
    is
-      Monitor_Access : Root_Event_Monitor_Access;
-      Status         : FSW_STATUS;
+      Status : FSW_STATUS;
    begin
       --  Initialize the C library
       Initialize_C_Lib;
@@ -175,24 +172,21 @@ package body Libfswatch is
          Add_Path (Monitor.Session, Path);
       end loop;
 
-      Monitor_Access := new Root_Event_Monitor'Class'(Monitor);
       Status := fsw_set_callback
-        (Monitor.Session, Low_Level_Callback'Access, Convert (Monitor_Access));
+        (Monitor.Session, Low_Level_Callback'Access,
+         Monitor'Address);
       if Status /= 0 then
-         Unchecked_Free (Monitor_Access);
          raise Libfswatch_Error with "fsw_set_callback returned" & Status'Img;
       end if;
 
       Status := fsw_start_monitor (Monitor.Session);
       if Status /= 0 then
-         Unchecked_Free (Monitor_Access);
          raise Libfswatch_Error with "fsw_start_monitor returned" & Status'Img;
       end if;
 
       --  The call to fsw_start_monitor above is blocking. If we reach this,
       --  this means that we've received fsw_stop_monitor and can cleanup.
 
-      Unchecked_Free (Monitor_Access);
       Status := fsw_destroy_session (Monitor.Session);
       if Status /= 0 then
          raise Libfswatch_Error with

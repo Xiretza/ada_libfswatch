@@ -22,21 +22,22 @@
 --                                                                          --
 ------------------------------------------------------------------------------
 
-with Ada.Text_IO;  use Ada.Text_IO;
+--  A monitor which monitors one file, reading from it a directory to monitor
 
-package body Simple_Print_Monitor is
+with GNATCOLL.VFS; use GNATCOLL.VFS;
+with Libfswatch;   use Libfswatch;
 
-   --------------
-   -- Callback --
-   --------------
+package Reloading_Monitor is
 
-   overriding procedure Callback (Self   : in out Print_Monitor;
-                                  Events : Event_Vectors.Vector) is
-   begin
-      --  Simple prints of the events we receive
-      for E of Events loop
-         Put_Line (Event_Image (E));
-      end loop;
-   end Callback;
+   type Monitor is new Root_Event_Monitor with record
+      Key_File                 : Virtual_File;
+      New_Paths_Read_From_File : File_Array_Access;
+   end record;
 
-end Simple_Print_Monitor;
+   overriding procedure Callback (Self   : in out Monitor;
+                                  Events : Event_Vectors.Vector);
+   --  Monitor the contents of Key_File. When the contents of Key_File
+   --  changes, interpret this as a list of paths, and store them
+   --  in New_Paths_Read_From_File.
+
+end Reloading_Monitor;
