@@ -1,4 +1,5 @@
 with "c_lib/c_libfswatch";
+with "gnatcoll";
 
 project Ada_Libfswatch is
 
