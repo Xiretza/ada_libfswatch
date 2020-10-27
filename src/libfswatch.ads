@@ -94,7 +94,7 @@ package Libfswatch is
    --  A callback type. Inherit from this and override Callback to define
    --  your own callback.
 
-   procedure Callback (Self   : Root_Event_Monitor;
+   procedure Callback (Self   : in out Root_Event_Monitor;
                        Events : Event_Vectors.Vector) is null;
    --  Called when events are received on the paths being monitored
 

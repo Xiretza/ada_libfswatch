@@ -22,21 +22,40 @@
 --                                                                          --
 ------------------------------------------------------------------------------
 
-with Ada.Text_IO;  use Ada.Text_IO;
+--  Demonstrator for an adaptative monitor which:
+--   - reads the paths to monitor from a file "paths.txt" (one path per line)
+--   - reloads itself when the file changes
+--   - quits when the file is deleted
 
-package body Simple_Print_Monitor is
+with Ada.Text_IO;          use Ada.Text_IO;
+with Libfswatch;           use Libfswatch;
+with GNATCOLL.VFS;         use GNATCOLL.VFS;
 
-   --------------
-   -- Callback --
-   --------------
+with Reloading_Monitor;
 
-   overriding procedure Callback (Self   : in out Print_Monitor;
-                                  Events : Event_Vectors.Vector) is
-   begin
-      --  Simple prints of the events we receive
-      for E of Events loop
-         Put_Line (Event_Image (E));
-      end loop;
-   end Callback;
+procedure Reloading_Monitor_Example is
 
-end Simple_Print_Monitor;
+   M : Reloading_Monitor.Monitor;
+
+begin
+   M.Key_File := Create ("paths.txt");
+
+   Put_Line ("Monitoring the contents of " &
+             (+M.Key_File.Full_Name.all));
+
+   M.New_Paths_Read_From_File := new File_Array'((1 => Create (".")));
+
+   while M.New_Paths_Read_From_File /= null loop
+      M.Blocking_Monitor (M.New_Paths_Read_From_File.all);
+      --  The call above blocks until the key file has changed - when
+      --  this occurs, the call will stop, and the monitor will fill
+      --  M.New_Paths_Read_From_File with the contents of the key file.
+
+      if not M.Key_File.Is_Regular_File then
+         --  This is our exit condition
+         Put_Line ((+M.Key_File.Full_Name.all)
+                   & " has disappeared, exitting.");
+         exit;
+      end if;
+   end loop;
+end Reloading_Monitor_Example;
