@@ -1,3 +1,5 @@
+DESTDIR=
+
 all: generated
 	gprbuild -p -P ada_libfswatch
 
@@ -15,3 +17,6 @@ generated: libfswatch
 clean:
 	gprclean -P ada_libfswatch
 	rm -rf generated
+
+install:
+	gprinstall -r -p -P ada_libfswatch --prefix=$(DESTDIR)

@@ -30,6 +30,7 @@ with Ada.Containers.Vectors;
 with GNATCOLL.VFS; use GNATCOLL.VFS;
 
 with libfswatch_types_h; use libfswatch_types_h;
+with cevent_h;           use cevent_h;
 
 package Libfswatch is
 
@@ -86,23 +87,28 @@ package Libfswatch is
    function Event_Image (E : Event) return String;
    --  Return a representation of an event as a string, useful for debugging
 
+   type Event_Flags_Array is array (Natural range <>) of Event_Flags;
+
    ----------------
    -- Monitoring --
    ----------------
 
-   type Root_Event_Monitor is tagged private;
+   type Root_Event_Monitor is abstract tagged private;
    --  A callback type. Inherit from this and override Callback to define
    --  your own callback.
 
    procedure Callback (Self   : in out Root_Event_Monitor;
-                       Events : Event_Vectors.Vector) is null;
+                       Events : Event_Vectors.Vector) is abstract;
    --  Called when events are received on the paths being monitored
 
    procedure Blocking_Monitor
-     (Monitor : in out Root_Event_Monitor'Class;
-      Paths   : File_Array);
+     (Monitor        : in out Root_Event_Monitor'Class;
+      Paths          : File_Array;
+      Events_Allowed : Event_Flags_Array := (1 .. 0 => No_Op));
    --  Monitor paths, calling Callback when events are received. This does
    --  not return until interrupted via Stop_Monitor below.
+   --  If Events_Allowed is specified, Callback will only be called
+   --  for those event types.
    --  TODO: add a timeout parameter?
 
    procedure Stop_Monitor (Monitor : in out Root_Event_Monitor'Class);
@@ -110,8 +116,11 @@ package Libfswatch is
 
 private
 
-   type Root_Event_Monitor is tagged record
+   type Root_Event_Monitor is abstract tagged record
       Session : FSW_HANDLE;
    end record;
+
+   type Event_Filter is new fsw_event_flag;
+   No_Filter : constant Event_Filter := 0;
 
 end Libfswatch;
