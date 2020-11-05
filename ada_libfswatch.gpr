@@ -8,7 +8,7 @@ project Ada_Libfswatch is
    for Object_Dir use "obj";
 
    package Compiler is
-      for Default_Switches ("Ada") use ("-g", "-O0", "-gnatwae", "-gnaty");
+      for Default_Switches ("Ada") use ("-g", "-O0", "-gnatwa", "-gnaty");
    end Compiler;
 
 end Ada_Libfswatch;

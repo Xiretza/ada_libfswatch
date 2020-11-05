@@ -25,7 +25,6 @@
 --  This package contains utilities to convert from low-level C representations
 --  to high-level Ada representations
 
-with cevent_h;     use cevent_h;
 with Interfaces.C; use Interfaces.C;
 
 package Libfswatch.Conversions is

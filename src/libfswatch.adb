@@ -23,14 +23,13 @@
 ------------------------------------------------------------------------------
 
 with Ada.Unchecked_Conversion;
-with Ada.Unchecked_Deallocation;
 with System;
 with Interfaces.C;           use Interfaces.C;
 with Interfaces.C.Strings;
 
 with cmonitor_h;
+with cfilter_h;              use cfilter_h;
 with libfswatch_h;           use libfswatch_h;
-with cevent_h;               use cevent_h;
 
 with Libfswatch.Conversions; use Libfswatch.Conversions;
 
@@ -38,8 +37,6 @@ package body Libfswatch is
 
    type Root_Event_Monitor_Access is access all Root_Event_Monitor'Class;
 
-   procedure Unchecked_Free is new Ada.Unchecked_Deallocation
-     (Root_Event_Monitor'Class, Root_Event_Monitor_Access);
    function Convert is new Ada.Unchecked_Conversion
      (System.Address, Root_Event_Monitor_Access);
 
@@ -143,10 +140,12 @@ package body Libfswatch is
 
    procedure Add_Path (Session : FSW_HANDLE; Path : Virtual_File) is
       Status : FSW_STATUS;
+      use Interfaces.C.Strings;
+      c_path : chars_ptr;
    begin
-      Status := fsw_add_path
-        (Session,
-         Interfaces.C.Strings.New_String (+Path.Full_Name.all));
+      c_path := Interfaces.C.Strings.New_String (+Path.Full_Name.all);
+      Status := fsw_add_path (Session, c_path);
+      Free (c_path);
       if Status /= 0 then
          raise Libfswatch_Error with "fsw_add_path returned" & Status'Img;
       end if;
@@ -157,8 +156,9 @@ package body Libfswatch is
    ----------------------
 
    procedure Blocking_Monitor
-     (Monitor : in out Root_Event_Monitor'Class;
-      Paths   : File_Array)
+     (Monitor        : in out Root_Event_Monitor'Class;
+      Paths          : File_Array;
+      Events_Allowed : Event_Flags_Array := (1 .. 0 => No_Op))
    is
       Status : FSW_STATUS;
    begin
@@ -178,6 +178,20 @@ package body Libfswatch is
       if Status /= 0 then
          raise Libfswatch_Error with "fsw_set_callback returned" & Status'Img;
       end if;
+
+      for Event of Events_Allowed loop
+         declare
+            R : fsw_event_type_filter;
+         begin
+            R.flag := Event'Enum_Rep;
+            Status := fsw_add_event_type_filter (Monitor.Session, R);
+
+            if Status /= 0 then
+               raise Libfswatch_Error
+                 with "fsw_add_event_type_filter returned" & Status'Img;
+            end if;
+         end;
+      end loop;
 
       Status := fsw_start_monitor (Monitor.Session);
       if Status /= 0 then
