@@ -51,6 +51,8 @@ procedure Blocking_Monitor_Example is
 begin
    --  Watch "." and "..": the monitor will print any events that might
    --  happen on these directories
-   Printer.Blocking_Monitor ((1 => Create ("."),
-                              2 => Create ("..")));
+   Printer.Blocking_Monitor
+     ((1 => Create ("."), 2 => Create ("..")),
+      Events_Allowed => (Removed, Created, Updated));
+
 end Blocking_Monitor_Example;
