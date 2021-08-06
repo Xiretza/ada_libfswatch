@@ -1,7 +1,7 @@
 DESTDIR=
 
 all: generated
-	gprbuild -p -P ada_libfswatch
+	gprbuild -p -P ada_libfswatch $(GPRBUILD_FLAGS)
 
 # generate the Ada binding
 generated:
