@@ -1,6 +1,6 @@
 library project C_Libfswatch is
 
-   libfswatch_prefix := External("LIBFSWATCH_PREFIX", "../libfswatch");
+   libfswatch_prefix := External("LIBFSWATCH_PREFIX", "/usr");
 
    type OS_Type is ("unix", "Windows_NT");
    OS : OS_Type := External ("OS", "unix");
